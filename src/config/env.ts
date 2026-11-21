@@ -50,3 +50,79 @@ export function parseServerEnv(input: Record<string, unknown>): ServerEnv {
 
   return result.data;
 }
+
+// ---------------------------------------------------------------------------
+// MongoDB (parsed lazily on first database use)
+// ---------------------------------------------------------------------------
+const mongoEnvSchema = z.object({
+  MONGODB_URI: z
+    .string()
+    .trim()
+    .regex(/^mongodb(?:\+srv)?:\/\/\S+$/),
+  MONGODB_DB_NAME: z
+    .string()
+    .trim()
+    .regex(/^[a-zA-Z0-9_-]{1,63}$/)
+    .default("wedora"),
+});
+
+export type MongoEnv = z.infer<typeof mongoEnvSchema>;
+
+export function parseMongoEnv(input: Record<string, unknown>): MongoEnv {
+  const result = mongoEnvSchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(
+      `Invalid MongoDB configuration. Check: ${describeInvalidFields(result.error)}.`,
+    );
+  }
+  return result.data;
+}
+
+// ---------------------------------------------------------------------------
+// Better Auth JWT verification (the Next.js client issues the tokens)
+// ---------------------------------------------------------------------------
+const trustedUrl = z.url().refine((value) => {
+  const url = new URL(value);
+  return (
+    !url.username &&
+    !url.password &&
+    !url.hash &&
+    !url.search &&
+    (url.protocol === "https:" ||
+      (url.protocol === "http:" &&
+        ["localhost", "127.0.0.1"].includes(url.hostname)))
+  );
+}, "Use HTTPS, or HTTP on localhost for development");
+
+const jwtEnvSchema = z.object({
+  BETTER_AUTH_JWKS_URL: trustedUrl,
+  BETTER_AUTH_ISSUER: trustedUrl.refine(
+    (value) => value === new URL(value).origin,
+    "Use the client origin without a trailing slash",
+  ),
+  BETTER_AUTH_AUDIENCE: z.string().trim().min(1),
+});
+
+export type JwtEnv = z.infer<typeof jwtEnvSchema>;
+
+export function parseJwtEnv(input: Record<string, unknown>): JwtEnv {
+  // Local defaults point at the Next.js dev server; production must be explicit.
+  const defaults =
+    input.NODE_ENV === "production"
+      ? {}
+      : {
+          BETTER_AUTH_JWKS_URL: "http://localhost:3000/api/auth/jwks",
+          BETTER_AUTH_ISSUER: "http://localhost:3000",
+          BETTER_AUTH_AUDIENCE: "http://localhost:3000",
+        };
+  const present = Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== ""),
+  );
+  const result = jwtEnvSchema.safeParse({ ...defaults, ...present });
+  if (!result.success) {
+    throw new Error(
+      `Invalid JWT configuration. Check: ${describeInvalidFields(result.error)}.`,
+    );
+  }
+  return result.data;
+}
