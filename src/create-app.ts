@@ -7,7 +7,11 @@ import { createTokenVerifier, type TokenVerifier } from "./lib/jwt.js";
 import { createAuthenticator } from "./middleware/auth.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { createHealthRouter } from "./routes/health.js";
+import { createAdminServicesRouter } from "./routes/admin-services.js";
 import { createMeRouter } from "./routes/me.js";
+import { createServicesRouter } from "./routes/services.js";
+import { createVendorServicesRouter } from "./routes/vendor-services.js";
+import { createServiceStore, type ServiceStore } from "./services/services.js";
 import { createUserService, type UserService } from "./services/users.js";
 
 export type AppConfig = Pick<ServerEnv, "CLIENT_ORIGIN"> & JwtEnv;
@@ -16,6 +20,7 @@ export type AppConfig = Pick<ServerEnv, "CLIENT_ORIGIN"> & JwtEnv;
 export type AppDependencies = {
   verifyToken?: TokenVerifier;
   users?: UserService;
+  services?: ServiceStore;
 };
 
 /**
@@ -27,6 +32,7 @@ export type AppDependencies = {
  */
 export function createApp(config: AppConfig, dependencies: AppDependencies = {}) {
   const users = dependencies.users ?? createUserService(getDatabase);
+  const services = dependencies.services ?? createServiceStore(getDatabase);
   const verifyToken = dependencies.verifyToken ?? createTokenVerifier(config);
   const authenticate = createAuthenticator(verifyToken, users);
 
@@ -49,6 +55,9 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
 
   app.use(createHealthRouter());
   app.use(createMeRouter(authenticate, users));
+  app.use(createServicesRouter(authenticate, services));
+  app.use(createVendorServicesRouter(authenticate, services));
+  app.use(createAdminServicesRouter(authenticate, services));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
