@@ -1,9 +1,13 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/create-app.js";
+import { createFakeUserService, fakeVerifier, TEST_CONFIG } from "./helpers.js";
 
-const CLIENT_ORIGIN = "http://localhost:3000";
-const app = createApp({ CLIENT_ORIGIN });
+const CLIENT_ORIGIN = TEST_CONFIG.CLIENT_ORIGIN;
+const app = createApp(TEST_CONFIG, {
+  verifyToken: fakeVerifier,
+  users: createFakeUserService().service,
+});
 
 describe("Wedora API baseline", () => {
   it("reports health without caching", async () => {
