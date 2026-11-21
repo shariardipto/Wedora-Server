@@ -2,7 +2,37 @@
 
 REST API for **Wedora**, a wedding planning platform where customers discover wedding services and request bookings, vendors publish services and manage requests, and admins moderate the platform.
 
-> Status: project foundation. Features, the full endpoint list, live links and deployment notes are added as they are built.
+> Status: authentication and authorization core is in place. Service, booking and payment endpoints are added in upcoming phases.
+
+## Security Model
+
+- The Next.js client signs users in with Better Auth and issues short-lived (15 min) EdDSA JWTs.
+- Every protected request must send `Authorization: Bearer <jwt>`. The API verifies signature, issuer, audience and expiry against the client's JWKS (`jose`) — invalid or expired tokens get **401**.
+- The token only proves *who* the caller is. Role, block status and subscription are loaded **from MongoDB on every request**, so changes (e.g. an admin blocking a user) apply immediately.
+- Blocked users and wrong roles get **403**. Role middleware: `requireRole("admin" | "vendor" | "customer")`.
+- Request bodies are validated with Zod; unknown fields are rejected.
+
+## API (so far)
+
+| Method & path      | Access                  | Purpose                                         |
+| ------------------ | ----------------------- | ----------------------------------------------- |
+| `GET /api/health`  | public                  | Liveness check                                  |
+| `GET /api/me`      | signed in               | Current profile, read fresh from the database   |
+| `POST /api/me/role`| signed in, no role yet  | One-time Customer/Vendor choice for Google sign-ups (`409` if already set) |
+| `GET /api/services` | public | Approved + available services. Query: `q`, `category`, `location`, `minPrice`, `maxPrice`, `sort` (`newest`, `price_asc`, `price_desc`), `page`, `limit` |
+| `GET /api/services/featured` | public | Newest approved services for the home page |
+| `GET /api/services/categories` | public | Service count per category |
+| `GET /api/services/:id` | signed in | Details (customers: public services only; owner vendor and admins: any status) |
+| `GET /api/vendor/services` | vendor | Own services + plan usage (`activeCount`, `activeLimit`) |
+| `POST /api/vendor/services` | vendor | Create (starts **pending**; Free plan max 3 active → `403 PLAN_LIMIT_REACHED`) |
+| `PATCH /api/vendor/services/:id` | vendor (owner) | Update; content edits send approved/rejected services back to review |
+| `PATCH /api/vendor/services/:id/availability` | vendor (owner) | Pause / resume |
+| `DELETE /api/vendor/services/:id` | vendor (owner) | Delete |
+| `GET /api/admin/services` | admin | All services with `q`, `status`, `category`, pagination |
+| `PATCH /api/admin/services/:id/status` | admin | Approve / reject (reason required) / back to review |
+| `DELETE /api/admin/services/:id` | admin | Delete inappropriate services |
+
+Prices are whole US dollars. Malformed or unknown ids return `404`.
 
 ## Technology Stack
 
@@ -11,6 +41,8 @@ REST API for **Wedora**, a wedding planning platform where customers discover we
 | Runtime    | Node.js 24, TypeScript (ESM)   |
 | Framework  | Express 5                      |
 | Validation | Zod                            |
+| Database   | MongoDB (native driver)        |
+| Auth       | JWT verification with `jose` (Better Auth JWKS) |
 | Security   | Helmet, strict CORS            |
 | Testing    | Vitest, Supertest              |
 | Hosting    | Vercel (zero-config Express)   |
@@ -37,6 +69,7 @@ Check that it is running: `GET http://localhost:5000/api/health`.
 | `npm run lint`      | ESLint (zero warnings allowed)       |
 | `npm run typecheck` | TypeScript type check                |
 | `npm test`          | Run the test suite                   |
+| `npm run db:setup`  | Create MongoDB indexes (idempotent)  |
 
 ## Environment Variables
 
