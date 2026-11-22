@@ -4,18 +4,24 @@ import helmet from "helmet";
 import { getDatabase } from "./config/database.js";
 import type { JwtEnv, ServerEnv } from "./config/env.js";
 import { createTokenVerifier, type TokenVerifier } from "./lib/jwt.js";
+import { createStripeGateway, type PaymentGateway } from "./lib/stripe.js";
 import { createAuthenticator } from "./middleware/auth.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { createHealthRouter } from "./routes/health.js";
 import { createAdminServicesRouter } from "./routes/admin-services.js";
+import { createAdminTransactionsRouter } from "./routes/admin-transactions.js";
 import { createAdminUsersRouter } from "./routes/admin-users.js";
+import { createBillingRouter } from "./routes/billing.js";
 import { createBookingsRouter } from "./routes/bookings.js";
 import { createMeRouter } from "./routes/me.js";
 import { createServicesRouter } from "./routes/services.js";
 import { createStatsRouter } from "./routes/stats.js";
+import { createStripeWebhookRouter } from "./routes/stripe-webhook.js";
 import { createVendorBookingsRouter } from "./routes/vendor-bookings.js";
 import { createVendorServicesRouter } from "./routes/vendor-services.js";
 import { createAdminUserStore, type AdminUserStore } from "./services/admin-users.js";
+import { createBillingService } from "./services/billing.js";
+import { createBillingStore, type BillingStore } from "./services/billing-store.js";
 import { createBookingStore, type BookingStore } from "./services/bookings.js";
 import { createServiceStore, type ServiceStore } from "./services/services.js";
 import { createStatsStore, type StatsStore } from "./services/stats.js";
@@ -31,6 +37,8 @@ export type AppDependencies = {
   bookings?: BookingStore;
   stats?: StatsStore;
   adminUsers?: AdminUserStore;
+  billingStore?: BillingStore;
+  paymentGateway?: PaymentGateway;
 };
 
 /**
@@ -46,6 +54,12 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
   const bookings = dependencies.bookings ?? createBookingStore(getDatabase);
   const stats = dependencies.stats ?? createStatsStore(getDatabase);
   const adminUsers = dependencies.adminUsers ?? createAdminUserStore(getDatabase);
+  const billingStore = dependencies.billingStore ?? createBillingStore(getDatabase);
+  const billing = createBillingService({
+    gateway: dependencies.paymentGateway ?? createStripeGateway(),
+    store: billingStore,
+    clientOrigin: config.CLIENT_ORIGIN,
+  });
   const verifyToken = dependencies.verifyToken ?? createTokenVerifier(config);
   const authenticate = createAuthenticator(verifyToken, users);
 
@@ -63,7 +77,8 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
     }),
   );
 
-  // The Stripe webhook route (P6) must be mounted ABOVE this line with express.raw().
+  // Stripe signs the raw bytes, so its webhook must be mounted BEFORE express.json().
+  app.use(createStripeWebhookRouter(billing));
   app.use(express.json({ limit: "100kb" }));
 
   app.use(createHealthRouter());
@@ -75,6 +90,8 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
   app.use(createVendorBookingsRouter(authenticate, bookings));
   app.use(createStatsRouter(authenticate, stats));
   app.use(createAdminUsersRouter(authenticate, adminUsers));
+  app.use(createBillingRouter(authenticate, billing));
+  app.use(createAdminTransactionsRouter(authenticate, billingStore));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
