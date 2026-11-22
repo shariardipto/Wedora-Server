@@ -15,7 +15,12 @@ dotenv.config({ quiet: true });
 type IndexSpec = {
   collection: string;
   key: Record<string, 1 | -1>;
-  options?: { name: string; unique?: boolean; expireAfterSeconds?: number };
+  options?: {
+    name: string;
+    unique?: boolean;
+    expireAfterSeconds?: number;
+    partialFilterExpression?: Record<string, unknown>;
+  };
 };
 
 export const INDEXES: IndexSpec[] = [
@@ -33,6 +38,19 @@ export const INDEXES: IndexSpec[] = [
   { collection: "services", key: { status: 1, isAvailable: 1, category: 1, price: 1 }, options: { name: "public_browse" } },
   { collection: "services", key: { status: 1, isAvailable: 1, createdAt: -1 }, options: { name: "public_newest" } },
   { collection: "services", key: { vendorId: 1, createdAt: -1 }, options: { name: "vendor_services" } },
+  // Bookings: customer and vendor lists, plus BR-09's duplicate guard enforced by the database
+  { collection: "bookings", key: { customerId: 1, createdAt: -1 }, options: { name: "customer_bookings" } },
+  { collection: "bookings", key: { vendorId: 1, status: 1, createdAt: -1 }, options: { name: "vendor_bookings" } },
+  { collection: "bookings", key: { serviceId: 1, status: 1 }, options: { name: "service_status" } },
+  {
+    collection: "bookings",
+    key: { customerId: 1, serviceId: 1, eventDate: 1 },
+    options: {
+      name: "active_booking_unique",
+      unique: true,
+      partialFilterExpression: { status: { $in: ["pending", "accepted"] } },
+    },
+  },
 ];
 
 const sameKey = (a: Record<string, unknown>, b: Record<string, unknown>) =>
