@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
-import helmet from "helmet";
+import type { RequestHandler } from "express";
+import helmetImport, { type HelmetOptions } from "helmet";
 import { getDatabase } from "./config/database.js";
 import type { JwtEnv, ServerEnv } from "./config/env.js";
 import { createTokenVerifier, type TokenVerifier } from "./lib/jwt.js";
@@ -26,6 +27,15 @@ import { createBookingStore, type BookingStore } from "./services/bookings.js";
 import { createServiceStore, type ServiceStore } from "./services/services.js";
 import { createStatsStore, type StatsStore } from "./services/stats.js";
 import { createUserService, type UserService } from "./services/users.js";
+
+/**
+ * helmet ships separate ESM and CommonJS typings. Vercel's build-time type check
+ * resolves the CommonJS ones and types the default import as the module object
+ * ("not callable"), while at runtime the default import is the middleware
+ * factory in every format (its CJS build sets `.default` to itself). Pin the type
+ * so the code compiles identically under any module resolution.
+ */
+const helmet = helmetImport as unknown as (options?: Readonly<HelmetOptions>) => RequestHandler;
 
 export type AppConfig = Pick<ServerEnv, "CLIENT_ORIGIN"> & JwtEnv;
 
