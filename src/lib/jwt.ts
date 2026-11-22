@@ -32,7 +32,9 @@ export function createTokenVerifier(
   const jwks =
     resolveKey ??
     createRemoteJWKSet(new URL(config.BETTER_AUTH_JWKS_URL), {
-      timeoutDuration: 5000,
+      // Generous: a cold client function must start before it can answer.
+      // Keys are cached for 10 minutes, so this cost is paid rarely.
+      timeoutDuration: 10_000,
       cooldownDuration: 30_000,
       cacheMaxAge: 600_000,
     });
