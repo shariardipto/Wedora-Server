@@ -11,10 +11,12 @@ import { createAdminServicesRouter } from "./routes/admin-services.js";
 import { createBookingsRouter } from "./routes/bookings.js";
 import { createMeRouter } from "./routes/me.js";
 import { createServicesRouter } from "./routes/services.js";
+import { createStatsRouter } from "./routes/stats.js";
 import { createVendorBookingsRouter } from "./routes/vendor-bookings.js";
 import { createVendorServicesRouter } from "./routes/vendor-services.js";
 import { createBookingStore, type BookingStore } from "./services/bookings.js";
 import { createServiceStore, type ServiceStore } from "./services/services.js";
+import { createStatsStore, type StatsStore } from "./services/stats.js";
 import { createUserService, type UserService } from "./services/users.js";
 
 export type AppConfig = Pick<ServerEnv, "CLIENT_ORIGIN"> & JwtEnv;
@@ -25,6 +27,7 @@ export type AppDependencies = {
   users?: UserService;
   services?: ServiceStore;
   bookings?: BookingStore;
+  stats?: StatsStore;
 };
 
 /**
@@ -38,6 +41,7 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
   const users = dependencies.users ?? createUserService(getDatabase);
   const services = dependencies.services ?? createServiceStore(getDatabase);
   const bookings = dependencies.bookings ?? createBookingStore(getDatabase);
+  const stats = dependencies.stats ?? createStatsStore(getDatabase);
   const verifyToken = dependencies.verifyToken ?? createTokenVerifier(config);
   const authenticate = createAuthenticator(verifyToken, users);
 
@@ -65,6 +69,7 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
   app.use(createAdminServicesRouter(authenticate, services, bookings));
   app.use(createBookingsRouter(authenticate, bookings, services));
   app.use(createVendorBookingsRouter(authenticate, bookings));
+  app.use(createStatsRouter(authenticate, stats));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
