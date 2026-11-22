@@ -8,9 +8,12 @@ import { createAuthenticator } from "./middleware/auth.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { createHealthRouter } from "./routes/health.js";
 import { createAdminServicesRouter } from "./routes/admin-services.js";
+import { createBookingsRouter } from "./routes/bookings.js";
 import { createMeRouter } from "./routes/me.js";
 import { createServicesRouter } from "./routes/services.js";
+import { createVendorBookingsRouter } from "./routes/vendor-bookings.js";
 import { createVendorServicesRouter } from "./routes/vendor-services.js";
+import { createBookingStore, type BookingStore } from "./services/bookings.js";
 import { createServiceStore, type ServiceStore } from "./services/services.js";
 import { createUserService, type UserService } from "./services/users.js";
 
@@ -21,6 +24,7 @@ export type AppDependencies = {
   verifyToken?: TokenVerifier;
   users?: UserService;
   services?: ServiceStore;
+  bookings?: BookingStore;
 };
 
 /**
@@ -33,6 +37,7 @@ export type AppDependencies = {
 export function createApp(config: AppConfig, dependencies: AppDependencies = {}) {
   const users = dependencies.users ?? createUserService(getDatabase);
   const services = dependencies.services ?? createServiceStore(getDatabase);
+  const bookings = dependencies.bookings ?? createBookingStore(getDatabase);
   const verifyToken = dependencies.verifyToken ?? createTokenVerifier(config);
   const authenticate = createAuthenticator(verifyToken, users);
 
@@ -56,8 +61,10 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
   app.use(createHealthRouter());
   app.use(createMeRouter(authenticate, users));
   app.use(createServicesRouter(authenticate, services));
-  app.use(createVendorServicesRouter(authenticate, services));
-  app.use(createAdminServicesRouter(authenticate, services));
+  app.use(createVendorServicesRouter(authenticate, services, bookings));
+  app.use(createAdminServicesRouter(authenticate, services, bookings));
+  app.use(createBookingsRouter(authenticate, bookings, services));
+  app.use(createVendorBookingsRouter(authenticate, bookings));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

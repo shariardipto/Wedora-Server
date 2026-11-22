@@ -1,6 +1,7 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/create-app.js";
+import { createFakeBookingStore } from "./fake-booking-store.js";
 import { createFakeServiceStore } from "./fake-service-store.js";
 import { bearerFor, createFakeUserService, jwtShapedVerifier, makeUser, TEST_CONFIG, validInput } from "./helpers.js";
 
@@ -18,7 +19,12 @@ function setup() {
   const all = [vendor, otherVendor, premiumVendor, blockedVendor, customer, admin];
   const users = createFakeUserService(all).service;
   const { store, seed, docs } = createFakeServiceStore(all);
-  const app = createApp(TEST_CONFIG, { verifyToken: jwtShapedVerifier, users, services: store });
+  const app = createApp(TEST_CONFIG, {
+    verifyToken: jwtShapedVerifier,
+    users,
+    services: store,
+    bookings: createFakeBookingStore().store,
+  });
   const as = (user: { _id: { toHexString(): string } }) => ({ Authorization: bearerFor(user._id.toHexString()) });
   return { app, seed, docs, vendor, otherVendor, premiumVendor, blockedVendor, customer, admin, as };
 }

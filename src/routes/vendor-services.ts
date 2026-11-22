@@ -3,6 +3,7 @@ import type { ObjectId } from "mongodb";
 import { forbidden, notFound } from "../lib/api-error.js";
 import { parseObjectId } from "../lib/object-id.js";
 import { currentUser, requireRole, type Authenticator } from "../middleware/auth.js";
+import type { BookingStore } from "../services/bookings.js";
 import { contentChanged, type ServiceStore } from "../services/services.js";
 import { FREE_PLAN_ACTIVE_LIMIT, type ServiceDocument } from "../types/service.js";
 import type { AppUser } from "../types/user.js";
@@ -34,7 +35,7 @@ export async function assertCanActivate(store: ServiceStore, user: AppUser, excl
 const countsTowardLimit = (doc: Pick<ServiceDocument, "status" | "isAvailable">) =>
   doc.isAvailable && (doc.status === "pending" || doc.status === "approved");
 
-export function createVendorServicesRouter(authenticate: Authenticator, store: ServiceStore) {
+export function createVendorServicesRouter(authenticate: Authenticator, store: ServiceStore, bookings: BookingStore) {
   const router = Router();
   router.use("/api/vendor/services", authenticate(), requireRole("vendor"));
 
@@ -120,7 +121,13 @@ export function createVendorServicesRouter(authenticate: Authenticator, store: S
     const id = parseObjectId(request.params.id, "Service");
     const removed = await store.remove(id, user.id);
     if (!removed) throw serviceNotFound();
-    response.json({ success: true, message: "Service deleted.", data: { id: id.toHexString() } });
+    // BR-08: pending requests can no longer be fulfilled; accepted ones keep their record.
+    const cancelledRequests = await bookings.cancelPendingForService(id);
+    response.json({
+      success: true,
+      message: cancelledRequests ? `Service deleted. ${cancelledRequests} pending request(s) were cancelled.` : "Service deleted.",
+      data: { id: id.toHexString(), cancelledRequests },
+    });
   });
 
   return router;

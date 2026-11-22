@@ -32,7 +32,14 @@ REST API for **Wedora**, a wedding planning platform where customers discover we
 | `PATCH /api/admin/services/:id/status` | admin | Approve / reject (reason required) / back to review |
 | `DELETE /api/admin/services/:id` | admin | Delete inappropriate services |
 
-Prices are whole US dollars. Malformed or unknown ids return `404`.
+| `POST /api/bookings` | customer | Request a booking (`serviceId`, `eventDate` YYYY-MM-DD, `eventLocation`, `message`); vendor/customer are set by the server; duplicates → `409` |
+| `GET /api/customer/bookings` | customer | Own booking requests with service and vendor info (`status` filter) |
+| `GET /api/customer/bookings/:id` | customer (owner) | Booking details |
+| `PATCH /api/customer/bookings/:id/cancel` | customer (owner) | Cancel — pending only (`409` otherwise) |
+| `GET /api/vendor/bookings` | vendor | Requests for own services with customer contact info (`status` filter) |
+| `PATCH /api/vendor/bookings/:id` | vendor (owner) | `{ status: "accepted" | "rejected" }` — pending only, once (`409` otherwise) |
+
+Prices are whole US dollars. Malformed or unknown ids return `404`. Status changes are atomic (`findOneAndUpdate` on `status: "pending"` + owner), and a partial unique index blocks duplicate active requests even under concurrent submissions. Deleting a service cancels its pending requests.
 
 ## Technology Stack
 

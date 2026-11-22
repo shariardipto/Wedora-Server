@@ -2,6 +2,7 @@ import { Router } from "express";
 import { notFound } from "../lib/api-error.js";
 import { parseObjectId } from "../lib/object-id.js";
 import { requireRole, type Authenticator } from "../middleware/auth.js";
+import type { BookingStore } from "../services/bookings.js";
 import type { ServiceStore } from "../services/services.js";
 import { adminListQuerySchema, adminStatusSchema } from "../validators/service.js";
 
@@ -12,7 +13,7 @@ const STATUS_MESSAGES = {
 } as const;
 
 /** Admin review: list every service, approve / reject / re-review, delete. */
-export function createAdminServicesRouter(authenticate: Authenticator, store: ServiceStore) {
+export function createAdminServicesRouter(authenticate: Authenticator, store: ServiceStore, bookings: BookingStore) {
   const router = Router();
   router.use("/api/admin/services", authenticate(), requireRole("admin"));
 
@@ -34,7 +35,8 @@ export function createAdminServicesRouter(authenticate: Authenticator, store: Se
     const id = parseObjectId(request.params.id, "Service");
     const removed = await store.remove(id);
     if (!removed) throw notFound("Service not found.", "SERVICE_NOT_FOUND");
-    response.json({ success: true, message: "Service deleted.", data: { id: id.toHexString() } });
+    const cancelledRequests = await bookings.cancelPendingForService(id); // BR-08
+    response.json({ success: true, message: "Service deleted.", data: { id: id.toHexString(), cancelledRequests } });
   });
 
   return router;
