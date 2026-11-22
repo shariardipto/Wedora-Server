@@ -39,6 +39,13 @@ REST API for **Wedora**, a wedding planning platform where customers discover we
 | `GET /api/vendor/bookings` | vendor | Requests for own services with customer contact info (`status` filter) |
 | `PATCH /api/vendor/bookings/:id` | vendor (owner) | `{ status: "accepted" | "rejected" }` — pending only, once (`409` otherwise) |
 
+| `GET /api/vendor/stats` | vendor | Total / active / live services, pending & accepted bookings, current plan |
+| `GET /api/customer/stats` | customer | Total, pending, accepted, rejected, cancelled booking requests |
+| `GET /api/admin/stats` | admin | Users, vendors, customers, blocked users, services, pending services, transactions |
+| `GET /api/admin/users` | admin | Users with `q` (name/email/business), `role`, `status` (active/blocked), pagination |
+| `GET /api/admin/users/:id` | admin | User details with activity counts |
+| `PATCH /api/admin/users/:id/block` | admin | `{ isBlocked }` — signs blocked users out (sessions deleted); admins and yourself can't be blocked (`403`) |
+
 Prices are whole US dollars. Malformed or unknown ids return `404`. Status changes are atomic (`findOneAndUpdate` on `status: "pending"` + owner), and a partial unique index blocks duplicate active requests even under concurrent submissions. Deleting a service cancels its pending requests.
 
 ## Technology Stack

@@ -8,12 +8,14 @@ import { createAuthenticator } from "./middleware/auth.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { createHealthRouter } from "./routes/health.js";
 import { createAdminServicesRouter } from "./routes/admin-services.js";
+import { createAdminUsersRouter } from "./routes/admin-users.js";
 import { createBookingsRouter } from "./routes/bookings.js";
 import { createMeRouter } from "./routes/me.js";
 import { createServicesRouter } from "./routes/services.js";
 import { createStatsRouter } from "./routes/stats.js";
 import { createVendorBookingsRouter } from "./routes/vendor-bookings.js";
 import { createVendorServicesRouter } from "./routes/vendor-services.js";
+import { createAdminUserStore, type AdminUserStore } from "./services/admin-users.js";
 import { createBookingStore, type BookingStore } from "./services/bookings.js";
 import { createServiceStore, type ServiceStore } from "./services/services.js";
 import { createStatsStore, type StatsStore } from "./services/stats.js";
@@ -28,6 +30,7 @@ export type AppDependencies = {
   services?: ServiceStore;
   bookings?: BookingStore;
   stats?: StatsStore;
+  adminUsers?: AdminUserStore;
 };
 
 /**
@@ -42,6 +45,7 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
   const services = dependencies.services ?? createServiceStore(getDatabase);
   const bookings = dependencies.bookings ?? createBookingStore(getDatabase);
   const stats = dependencies.stats ?? createStatsStore(getDatabase);
+  const adminUsers = dependencies.adminUsers ?? createAdminUserStore(getDatabase);
   const verifyToken = dependencies.verifyToken ?? createTokenVerifier(config);
   const authenticate = createAuthenticator(verifyToken, users);
 
@@ -70,6 +74,7 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
   app.use(createBookingsRouter(authenticate, bookings, services));
   app.use(createVendorBookingsRouter(authenticate, bookings));
   app.use(createStatsRouter(authenticate, stats));
+  app.use(createAdminUsersRouter(authenticate, adminUsers));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
