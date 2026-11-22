@@ -2,10 +2,9 @@ import { ObjectId, type Db } from "mongodb";
 import { AUTH_COLLECTIONS } from "../config/database.js";
 import type { BookingDocument, BookingStatus } from "../types/booking.js";
 import type { ServiceDocument } from "../types/service.js";
+import { TRANSACTIONS_COLLECTION } from "../types/transaction.js";
 import { BOOKINGS_COLLECTION } from "./bookings.js";
 import { ACTIVE_STATUSES, SERVICES_COLLECTION } from "./services.js";
-
-export const TRANSACTIONS_COLLECTION = "transactions";
 
 export type VendorStats = {
   totalServices: number;

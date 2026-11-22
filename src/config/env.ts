@@ -126,3 +126,29 @@ export function parseJwtEnv(input: Record<string, unknown>): JwtEnv {
   }
   return result.data;
 }
+
+// ---------------------------------------------------------------------------
+// Stripe (parsed lazily on first payment use, so the API boots without it)
+// ---------------------------------------------------------------------------
+const stripeEnvSchema = z.object({
+  STRIPE_SECRET_KEY: z
+    .string()
+    .trim()
+    .regex(/^(?:sk|rk)_(?:test|live)_[A-Za-z0-9]{10,}$/),
+  STRIPE_WEBHOOK_SECRET: z
+    .string()
+    .trim()
+    .regex(/^whsec_[A-Za-z0-9+/=]{10,}$/),
+});
+
+export type StripeEnv = z.infer<typeof stripeEnvSchema>;
+
+export function parseStripeEnv(input: Record<string, unknown>): StripeEnv {
+  const result = stripeEnvSchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(
+      `Invalid Stripe configuration. Check: ${describeInvalidFields(result.error)}.`,
+    );
+  }
+  return result.data;
+}

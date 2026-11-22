@@ -51,6 +51,26 @@ export const INDEXES: IndexSpec[] = [
       partialFilterExpression: { status: { $in: ["pending", "accepted"] } },
     },
   },
+  // Billing: webhook idempotency (one row per Checkout session / invoice), vendor + admin history
+  {
+    collection: "transactions",
+    key: { stripeSessionId: 1 },
+    options: { name: "stripe_session_unique", unique: true, partialFilterExpression: { stripeSessionId: { $type: "string" } } },
+  },
+  {
+    collection: "transactions",
+    key: { stripeInvoiceId: 1 },
+    options: { name: "stripe_invoice_unique", unique: true, partialFilterExpression: { stripeInvoiceId: { $type: "string" } } },
+  },
+  { collection: "transactions", key: { vendorId: 1, createdAt: -1 }, options: { name: "vendor_transactions" } },
+  { collection: "transactions", key: { status: 1, createdAt: -1 }, options: { name: "status_createdAt" } },
+  { collection: "transactions", key: { createdAt: -1 }, options: { name: "createdAt" } },
+  // Webhook fallback lookup (invoice → vendor) when metadata is missing
+  {
+    collection: "user",
+    key: { stripeCustomerId: 1 },
+    options: { name: "stripe_customer", partialFilterExpression: { stripeCustomerId: { $type: "string" } } },
+  },
 ];
 
 const sameKey = (a: Record<string, unknown>, b: Record<string, unknown>) =>
