@@ -35,6 +35,7 @@ Wedding services, booking requests, admin moderation and Stripe subscriptions. E
 - [Scripts](#scripts)
 - [Testing](#testing)
 - [Deployment](#deployment)
+- [Copyright](#copyright)
 
 ## Overview
 
@@ -216,7 +217,7 @@ All endpoints are under `/api` and use JSON. Protected endpoints need `Authoriza
 | --- | --- |
 | Sign-up roles | Email sign-up accepts only `customer` or `vendor`. Admins come only from the seed script |
 | Public visibility | Listings and bookings require `status = approved` and `isAvailable = true` |
-| Free plan limit | At most **3 active services** (pending or approved, and available). Premium is unlimited |
+| Free plan limit | At most **3 active services** (pending or approved, and available). Premium is unlimited, and vendor info carries `isPremium` (paid and not expired) for the Premium vendor badge |
 | Re-review | Editing an approved or rejected service's content sends it back to `pending`. Pausing or resuming doesn't |
 | Booking requests | Customers only. The event date runs from tomorrow up to 2 years ahead, and no one can book their own service |
 | Duplicates | One active (pending or accepted) request per customer, service and date. Enforced by a partial unique index |
@@ -352,6 +353,13 @@ Without the Stripe variables, billing endpoints return `503 PAYMENTS_UNAVAILABLE
 npm test
 ```
 
+**On the live deployment** (November 2026), end-to-end runs passed for services (39/39), bookings (25/25), dashboards and admin (20/20), and Stripe (39/39, with a real test-mode Checkout and the Dashboard webhook). The latest smoke test passed 15/15:
+
+- the admin signs in;
+- every admin page survives a refresh;
+- cross-role URLs are refused, and the API answers `403` for the wrong role and `401` for an invalid token;
+- CORS allows only the client's origin.
+
 ## Deployment
 
 The API is deployed on **Vercel** as a zero-config Express app.
@@ -366,3 +374,9 @@ The API is deployed on **Vercel** as a zero-config Express app.
 5. In **Stripe → Developers → Webhooks**:
    - Add the endpoint `https://<api-domain>/api/webhooks/stripe` for the nine events listed above.
    - Set its signing secret as `STRIPE_WEBHOOK_SECRET`.
+
+## Copyright
+
+© 2026 Wedora. All rights reserved.
+
+Designed and developed by [The Code Work Studio](https://thecodeworkstudio.com).
